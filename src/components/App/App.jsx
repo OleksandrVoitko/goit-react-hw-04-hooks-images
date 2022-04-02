@@ -1,4 +1,4 @@
-import { Component } from "react";
+import { useEffect, useState } from "react";
 import SearchBar from "../SearchBar";
 import { Wrapper } from "./App.styled";
 import getImg from "../../services/api";
@@ -7,88 +7,71 @@ import Modal from "../Modal";
 import Button from "../Button";
 import Loader from "../Loader";
 import { IMG_PER_PAGE } from "../../services/constants";
-class App extends Component {
-  state = {
-    searchQuery: "",
-    page: 1,
-    images: [],
-    loading: false,
-    showModal: false,
-    modalImage: "",
-  };
 
-  componentDidUpdate(prevProps, { searchQuery, page }) {
-    if (searchQuery !== this.state.searchQuery || page !== this.state.page) {
-      this.searchImg(searchQuery, page);
+export default function App() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalImage, setModalImage] = useState("");
+
+  useEffect(() => {
+    if (searchQuery === "") return;
+
+    const searchImg = async () => {
+      toggleLoading();
+
+      try {
+        const data = await getImg(searchQuery, page);
+        setImages((images) => [...images, ...data.hits]);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        toggleLoading();
+      }
+    };
+
+    searchImg();
+  }, [searchQuery, page]);
+
+  const handleChangeSearch = (newSearchQuery) => {
+    if (newSearchQuery !== searchQuery) {
+      setSearchQuery(newSearchQuery);
+      setPage(1);
+      setImages([]);
     }
     return;
-  }
-
-  handleChangeSearch = (searchQuery) => {
-    if (searchQuery !== this.state.searchQuery) {
-      this.setState({
-        searchQuery,
-        page: 1,
-        images: [],
-      });
-    }
-    return;
   };
 
-  toggleLoading = () => {
-    this.setState(({ loading }) => ({
-      loading: !loading,
-    }));
+  const toggleLoading = () => {
+    setLoading((loading) => !loading);
   };
 
-  searchImg = async () => {
-    const { searchQuery, page } = this.state;
-    this.toggleLoading();
-
-    try {
-      const data = await getImg(searchQuery, page);
-      this.setState(({ images }) => {
-        return { images: [...images, ...data.hits] };
-      });
-    } catch (e) {
-      console.error(e);
-    } finally {
-      this.toggleLoading();
-    }
+  const toggleModal = () => {
+    setShowModal((showModal) => !showModal);
   };
 
-  toggleModal = () => {
-    this.setState(({ showModal }) => ({ showModal: !showModal }));
+  const handleImageClick = (newImage) => {
+    setModalImage(newImage);
+    toggleModal();
   };
 
-  handleImageClick = (image) => {
-    this.setState({ modalImage: image });
-    this.toggleModal();
+  const handlerLoadMore = () => {
+    setPage((page) => page + 1);
   };
 
-  handlerLoadMore = () => {
-    this.setState(({ page }) => ({ page: page + 1 }));
-  };
-
-  render() {
-    const { images, showModal, modalImage, page, loading } = this.state;
-
-    return (
-      <Wrapper>
-        <SearchBar onSubmit={this.handleChangeSearch} />
-        {images.length > 0 && (
-          <ImageGallery images={images} onImageClick={this.handleImageClick} />
-        )}
-        {showModal && (
-          <Modal largeImg={modalImage} onClose={this.toggleModal} />
-        )}
-        {images.length > 0 && images.length / page === IMG_PER_PAGE && (
-          <Button onButtonClick={this.handlerLoadMore} />
-        )}
-        {loading && <Loader />}
-      </Wrapper>
-    );
-  }
+  return (
+    <Wrapper>
+      <SearchBar onSubmit={handleChangeSearch} />
+      {images.length > 0 && (
+        <ImageGallery images={images} onImageClick={handleImageClick} />
+      )}
+      {showModal && <Modal largeImg={modalImage} onClose={toggleModal} />}
+      {images.length > 0 && images.length / page === IMG_PER_PAGE && (
+        <Button onButtonClick={handlerLoadMore} />
+      )}
+      {loading && <Loader />}
+    </Wrapper>
+  );
 }
-
-export default App;
